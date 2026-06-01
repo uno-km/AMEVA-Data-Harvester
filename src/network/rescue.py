@@ -8,13 +8,13 @@ UPDATE_ID_FILE = ".tg_last_update_id"
 
 def parse_telegram_reply(text):
     """
-    서버의 답장 형식 파싱: [SUCCESS] UUID:<uuid>, SIZE:<size>
+    서버의 답장 형식 파싱: [SUCCESS] ID:<sha256>
     """
-    pattern = r"\[SUCCESS\]\s+UUID\s*:\s*([a-fA-F0-9\-]{36})\s*,\s*SIZE\s*:\s*(\d+)"
+    pattern = r"\[SUCCESS\]\s*ID:\s*([a-fA-F0-9]{64})"
     match = re.search(pattern, text)
     if match:
-        return match.group(1).strip().lower(), int(match.group(2).strip())
-    return None, None
+        return match.group(1).strip().lower()
+    return None
 
 
 def get_last_update_id():
@@ -37,12 +37,15 @@ def save_last_update_id(uid):
 
 def check_telegram_replies(config):
     """
-    getUpdates API를 호출하여 수신 측의 [SUCCESS] 메시지를 체크합니다.
-    UUID와 SIZE가 매칭되면 MIA_Bunker에서 zip 파일을 삭제합니다.
+    Telegram Rescue Strict Validation.
+    메시지의 Chat ID와 Sender User ID가 모두 허용된 목록과 일치할 때만 파싱을 시도합니다.
     """
     token = config.get("tg_bot_token")
     if not token or ":" not in token:
         return
+
+    allowed_chat_id = str(config.get("allowed_chat_id", ""))
+    allowed_sender_id = str(config.get("allowed_sender_user_id", ""))
 
     base_url = f"https://api.telegram.org/bot{token}"
     last_id = get_last_update_id()
@@ -66,28 +69,34 @@ def check_telegram_replies(config):
             if not message:
                 continue
 
+            # 1. 채팅방(공간) 검증
+            chat = message.get("chat", {})
+            if str(chat.get("id")) != allowed_chat_id:
+                continue
+
+            # 2. 발신자(유저/봇) 검증
             from_user = message.get("from", {})
-            if from_user.get("is_bot", False):
+            if str(from_user.get("id")) != allowed_sender_id:
                 continue
 
             text = message.get("text", "")
             if not text:
                 continue
 
-            ruuid, rsize = parse_telegram_reply(text)
-            if ruuid and rsize:
+            ruuid = parse_telegram_reply(text)
+            if ruuid:
                 if os.path.exists(MIA_BUNKER_DIR):
                     for fn in os.listdir(MIA_BUNKER_DIR):
                         if fn.endswith(".zip") and ruuid in fn:
                             file_path = os.path.join(MIA_BUNKER_DIR, fn)
-                            local_size = os.path.getsize(file_path)
                             
-                            if local_size == rsize:
-                                write_log(ruuid, fn, "ASYNC_RESCUE", "VALIDATION_OK", "SUCCESS", f"텔레그램 비동기 구조 성공. 벙커 파일 삭제.")
-                                try: os.remove(file_path)
-                                except Exception as e:
-                                    print(f"[-] 벙커 파일 삭제 실패 ({fn}): {e}")
-                            else:
-                                write_log(ruuid, fn, "ASYNC_RESCUE", "VALIDATION_FAIL", "FAIL", f"용량 대조 실패. 로컬: {local_size}, 텔레그램 수신: {rsize}")
+                            # 파일이 이미 삭제된 중복 요청의 경우 스킵
+                            if not os.path.exists(file_path):
+                                continue
+                            
+                            write_log(ruuid, fn, "ASYNC_RESCUE", "VALIDATION_OK", "SUCCESS", f"텔레그램 비동기 구조 인증 완료. 벙커 파일 완벽 삭제.")
+                            try: os.remove(file_path)
+                            except Exception as e:
+                                print(f"[-] 벙커 파일 삭제 실패 ({fn}): {e}")
     except Exception as e:
         print(f"[RESCUE WARNING] 텔레그램 구조대 체크 예외 발생: {e}")

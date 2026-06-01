@@ -13,7 +13,7 @@ env.bak/
 venv.bak/
 
 # Harvester Dynamic Files
-#config.json
+config.json
 harvester_logs.csv
 .tg_last_update_id
 

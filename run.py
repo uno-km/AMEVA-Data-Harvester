@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-AMEVA-Data-Harvester v2.1 (초경량 엣지 포워더)
+AMEVA-Data-Harvester v3.1 (엔터프라이즈 무결성 에디션)
 Windows 및 Android (Termux) 환경 최적화 에이전트.
-- DB 미사용, 파일 시스템 기반 상태 관리.
-- 전 구간 ZIP 압축 및 UUID/용량 대조 무결성 검증.
+- DB 미사용, 디렉터리 기반으로 단순하고 명확하게 관리.
+- 전 구간 ZIP 압축 및 ZIP 아티팩트 SHA-256 해시 검증을 통해 무결성 검증 정합성을 강화.
 - 3단계 PAC (Primary SSH -> Alternate API -> Contingency Telegram) 통신 파이프라인.
 """
 
