@@ -39,6 +39,8 @@ def check_telegram_replies(config):
     """
     Telegram Rescue Strict Validation.
     메시지의 Chat ID와 Sender User ID가 모두 허용된 목록과 일치할 때만 파싱을 시도합니다.
+    [중요] 이 함수(rescue.py)는 오직 MIA_Bunker 디렉터리(MIA_BUNKER_DIR) 내에 보존되어 대기 중인 
+    ZIP 파일들만을 대상으로 자동 검증 및 삭제 처리를 수행하며, 그 외 DropZone이나 Staging 영역은 일절 건드리지 않습니다.
     """
     token = config.get("tg_bot_token")
     if not token or ":" not in token:

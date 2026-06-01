@@ -38,7 +38,19 @@ def transmit_payload(original_file_path, config):
     # 3. Telegram (Contingency)
     try:
         if run_telegram_transfer(zip_path, file_id, config):
-            safe_cleanup(original_file_path, None) # zip_path는 telegram 전송에서 MIA_Bunker로 이동됨
+            # Telegram 전송 성공 시, ZIP 아티팩트를 비동기 구출 대기(MIA_Bunker 이동) 상태로 보관합니다.
+            bunker_path = os.path.join(MIA_BUNKER_DIR, os.path.basename(zip_path))
+            if os.path.exists(bunker_path):
+                try: os.remove(bunker_path)
+                except: pass
+            try:
+                shutil.move(zip_path, bunker_path)
+                write_log(file_id, filename, "STAGE_3_TELEGRAM", "BUNKER_MOVE", "SUCCESS", "Telegram 전송 성공 후 ZIP 아티팩트 MIA_Bunker 이동 보관 완료.")
+            except Exception as e:
+                write_log(file_id, filename, "STAGE_3_TELEGRAM", "BUNKER_MOVE_FAIL", "FAIL", f"Telegram 전송 성공 후 MIA_Bunker 이동 실패: {e}")
+            
+            # 원본 파일은 즉시 안전 삭제
+            safe_cleanup(original_file_path, None)
             return
     except Exception as e:
         write_log(file_id, filename, "STAGE_3_TELEGRAM", "CRITICAL_ERR", "FAIL", f"텔레그램 스테이지 진행 실패 예외: {e}")

@@ -40,7 +40,7 @@ def setup_config():
             config[k] = v
 
     print("\n" + "="*65)
-    print(" AMEVA-Data-Harvester v3.0 CLI CONFIGURATION")
+    print(" AMEVA-Data-Harvester v3.1 CLI CONFIGURATION")
     print(" - 값 입력 없이 [Enter]를 치면 기존/기본 설정을 유지합니다.")
     print("="*65)
 
