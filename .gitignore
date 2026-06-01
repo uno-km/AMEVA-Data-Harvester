@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Harvester Dynamic Files
+#config.json
+harvester_logs.csv
+.tg_last_update_id
+
+# Harvester Data Directories
+DropZone/
+MIA_Bunker/

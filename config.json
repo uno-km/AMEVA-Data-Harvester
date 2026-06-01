@@ -1,0 +1,10 @@
+{
+    "file_type": "image",
+    "target_dir": "DropZone",
+    "interval": 60,
+    "ssh_info": "user@127.0.0.1",
+    "ssh_remote_dir": "/tmp/harvester_upload",
+    "api_url": "http://localhost:8000/api/upload",
+    "tg_bot_token": "123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ",
+    "tg_chat_id": "12345678"
+}
