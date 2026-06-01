@@ -18,10 +18,11 @@ v3.1에서 개선된 핵심 아키텍처는 다음과 같습니다.
 ### 2.3 인프라 전송 오류 원천 차단 및 원자적 대피
 * **[Primary] SSH 전송**: 원격 디렉터리가 없을 경우를 대비해 전송 직전 `mkdir -p` (Linux/Unix 계열 전제) 명령으로 폴더 생성을 보장합니다. 전송 후 로컬 해시와 원격 셸(`sha256sum`)을 대조하여 무결성 검증 정합성을 강화했습니다.
 * **[Alternate] API 전송**: 서버 응답 JSON의 `{"hash": "..."}` 값을 ZIP 아티팩트 해시와 교차 검증합니다.
-* **[Contingency] 텔레그램 및 MIA_Bunker 격리**: 위 모든 전송 방식이 실패하더라도, 파일이 `/Staging` 구역에 방치되어 누수가 생기지 않도록 즉시 `/MIA_Bunker` 벙커로 강제 `shutil.move` 대피합니다.
+* **[Contingency] 텔레그램 및 MIA_Bunker 격리**: Telegram 전송이 성공하면, 로컬 원본 파일은 즉시 삭제되고 전송된 ZIP 아티팩트는 `/MIA_Bunker` 벙커로 강제 `shutil.move` 이동하여 비동기 구출 대기 상태로 보관됩니다. 만약 1단계(SSH), 2단계(API), 3단계(Telegram)를 포함한 모든 전송 수단이 완전히 실패하더라도, 파일이 `/Staging` 구역에 방치되어 누수가 생기지 않도록 ZIP 아티팩트를 `/MIA_Bunker` 벙커로 동일하게 강제 대피시킵니다.
 
 ### 2.4 Telegram 이중 인증 (Strict Rescue Validation)
 * 텔레그램 구조대가 `[SUCCESS] ID:...` 메시지를 받을 때, 발송된 **채팅방(allowed_chat_id)**과 발송한 **사용자(allowed_sender_user_id)**가 `config.json`의 권한과 완벽히 일치할 때만 스푸핑(Spoofing)을 방어하고 백업 파일을 삭제합니다.
+* **MIA_Bunker 독점 대상 검증**: `rescue.py` 구조대 모듈은 오직 `/MIA_Bunker` 디렉터리 내의 파일만을 스캔하여 정리하며, 그 외 `DropZone`이나 `Staging` 영역은 어떠한 경우에도 건드리지 않습니다.
 
 ### 2.5 로깅 및 파일 핸들 누수 방지
 * **일자별 로깅**: 매일 `logs/harvester_YYYYMMDD.csv` 형태로 로그 파일이 로테이션됩니다.
@@ -112,7 +113,7 @@ def setup_config():
             config[k] = v
 
     print("\n" + "="*65)
-    print(" AMEVA-Data-Harvester v3.0 CLI CONFIGURATION")
+    print(" AMEVA-Data-Harvester v3.1 CLI CONFIGURATION")
     print(" - 값 입력 없이 [Enter]를 치면 기존/기본 설정을 유지합니다.")
     print("="*65)
 
@@ -520,6 +521,8 @@ def check_telegram_replies(config):
     """
     Telegram Rescue Strict Validation.
     메시지의 Chat ID와 Sender User ID가 모두 허용된 목록과 일치할 때만 파싱을 시도합니다.
+    [중요] 이 함수(rescue.py)는 오직 MIA_Bunker 디렉터리(MIA_BUNKER_DIR) 내에 보존되어 대기 중인 
+    ZIP 파일들만을 대상으로 자동 검증 및 삭제 처리를 수행하며, 그 외 DropZone이나 Staging 영역은 일절 건드리지 않습니다.
     """
     token = config.get("tg_bot_token")
     if not token or ":" not in token:
@@ -626,7 +629,19 @@ def transmit_payload(original_file_path, config):
     # 3. Telegram (Contingency)
     try:
         if run_telegram_transfer(zip_path, file_id, config):
-            safe_cleanup(original_file_path, None) # zip_path는 telegram 전송에서 MIA_Bunker로 이동됨
+            # Telegram 전송 성공 시, ZIP 아티팩트를 비동기 구출 대기(MIA_Bunker 이동) 상태로 보관합니다.
+            bunker_path = os.path.join(MIA_BUNKER_DIR, os.path.basename(zip_path))
+            if os.path.exists(bunker_path):
+                try: os.remove(bunker_path)
+                except: pass
+            try:
+                shutil.move(zip_path, bunker_path)
+                write_log(file_id, filename, "STAGE_3_TELEGRAM", "BUNKER_MOVE", "SUCCESS", "Telegram 전송 성공 후 ZIP 아티팩트 MIA_Bunker 이동 보관 완료.")
+            except Exception as e:
+                write_log(file_id, filename, "STAGE_3_TELEGRAM", "BUNKER_MOVE_FAIL", "FAIL", f"Telegram 전송 성공 후 MIA_Bunker 이동 실패: {e}")
+            
+            # 원본 파일은 즉시 안전 삭제
+            safe_cleanup(original_file_path, None)
             return
     except Exception as e:
         write_log(file_id, filename, "STAGE_3_TELEGRAM", "CRITICAL_ERR", "FAIL", f"텔레그램 스테이지 진행 실패 예외: {e}")

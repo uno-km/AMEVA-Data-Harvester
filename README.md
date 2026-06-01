@@ -1,4 +1,9 @@
 📊 AMEVA-Data-Harvester: Enterprise-Grade Data Transmission Pipeline
+
+<div align="center">
+  <img src="img/ameva_data_harvester_architecture.png" alt="AMEVA-Data-Harvester Architecture" width="800">
+</div>
+
 1. 개요 (Abstract)
 본 프로젝트는 특정 도메인(보안 데이터 및 원격 통신)에 특화된 데이터 획득 및 전송(Harvester) 시스템을 구축하기 위한 엔드투엔드 파이프라인이다. 디렉토리 기반 아키텍처(DB 미사용)를 채택하였으며, 파일 수집의 자동화, O(1) 배치 폴링 전처리 알고리즘, 3단계 PAC를 활용한 효율적 통신망 어댑테이션, 그리고 ZIP 해시 검증을 통한 최적화된 파일 무결성 과정을 포함한다.
 
